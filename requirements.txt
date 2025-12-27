@@ -1,0 +1,6 @@
+hidapi
+mido
+python-rtmidi
+PyYAML
+watchdog
+watchfiles

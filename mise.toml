@@ -1,0 +1,17 @@
+[tools]
+python = "3.11"
+
+[env]
+# Use the project name derived from the current directory
+PROJECT_NAME = "{{ config_root | basename }}"
+
+# Automatic virtualenv activation
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.deps]
+description = "Install dependencies"
+run = "pip install -r requirements.txt"
+
+[tasks.dev]
+description = "Run the application"
+run = "watchfiles \"python app.py\" ."
