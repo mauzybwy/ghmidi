@@ -5,7 +5,8 @@ import time
 
 VID = 0x1209
 PID = 0x2882
-MIDI_OUTPUT = 'IAC Driver Bus 1' 
+MIDI_OUTPUT = 'IAC Driver Bus 1'
+MAX_PITCH = 8191
 
 """
   Path: b'DevSrvsID:4295599843'
@@ -20,7 +21,7 @@ MIDI_OUTPUT = 'IAC Driver Bus 1'
 
 BUTTON_COUNT = 5
 TAP_PAD_COUNT = 5
-LEGATO_DEBOUNCE = 1.0
+LEGATO_DEBOUNCE = 4.0
 CHORD_DEBOUNCE = 0.25
 STRUM_DEBOUNCE = 0.05
 
@@ -29,6 +30,7 @@ class MidiGuitar(MidiInstrument):
         super().__init__(keymap, VID, PID, MIDI_OUTPUT)
         self.buttons = [None] * BUTTON_COUNT
         self.strum_tick = 0.0
+        self.pitch_position = 0.0
     
     def _poll(self):        
         data = self.device.read(64)
@@ -75,33 +77,22 @@ class MidiGuitar(MidiInstrument):
             )
             self.midiout.send(msg)
 
+        pitch_position = 0
+        whammy = data[4]
+        if whammy > 0xc0:
+            pitch_position = MAX_PITCH
+        elif whammy > 0x90:
+            pitch_position = math.floor(((whammy - 0x90) / 0x30) * MAX_PITCH)
+
+        if pitch_position != self.pitch_position:
+            msg = Message(
+                'pitchwheel',
+                pitch=pitch_position
+            )
+            self.midiout.send(msg)
+
         print(buttons, self.strum_tick, legato)
         self.buttons = buttons
-
-        # for i, b in enumerate(data):
-        #     key = self.keymap[i] if i < len(self.keymap) else None
-        #     if not key:
-        #         continue
-        # 
-        #     prev = self.last[i]
-        #     curr = data[i]
-        # 
-        #     if curr < 10:
-        #         curr = 0
-        # 
-        #     if prev == curr:
-        #         continue
-        # 
-        #     msg = Message(
-        #         'note_on' if curr else 'note_off',
-        #         channel=0,
-        #         note=key['note'],
-        #         velocity=math.floor(curr / 2),
-        #         time=0
-        #     )
-        #     self.midiout.send(msg)
-        #     self.last[i] = curr
-
 
     def is_legato(self, tick):
         return tick - self.strum_tick < LEGATO_DEBOUNCE
