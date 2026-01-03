@@ -4,3 +4,4 @@ python-rtmidi
 PyYAML
 watchdog
 watchfiles
+dearpygui

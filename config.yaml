@@ -1,19 +1,25 @@
 keymap:
     red:
         index: 5
-        pad: ELECTRIC_SNARE
+        pad: ACOUSTIC_SNARE
     blue:
         index: 7
         pad: HIGH_FLOOR_TOM
     green:
         index: 4
-        pad: MID_FLOOR_TOM
+        pad: LOW_MID_TOM
     yellow:
         index: 6 
-        pad: CLOSED_HI_HAT 
+        pad: OPEN_HI_HAT 
     orange:
         index: 8
-        pad: HAND_CLAP
+        pad: CRASH_CYMBAL_1
+    # plus:
+        # index: ?
+        # pad: HAND_CLAP
+    # minus:
+        # index: ?
+        # pad: COWBELL
 
 midimap:
     BASS_DRUM_1: 36

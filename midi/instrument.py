@@ -33,19 +33,19 @@ class MidiInstrument:
         if self.midiout:
             self.midiout.close()
 
-    def longpoll(self):
-        while True:
-            try:
-                self._poll()
-            except (ValueError, OSError) as e:
-                if e.args[0] in ["not open", "read error"]:
-                    print("⚠️ Please connect the USB device :( ⚠️")
-                    self._reconnect()
-                else:
-                    raise
+    def poll(self):
+        try:
+            self._poll()
+        except (ValueError, OSError) as e:
+            if e.args[0] in ["not open", "read error"]:
+                print("⚠️ Please connect the USB device :( ⚠️")
+                self._reconnect()
+            else:
+                raise
 
     def _connect(self):
         self.device = hid.device()
+        # print(list_hid_devices())
         self.device.open(self.vid, self.pid)
         self.device.set_nonblocking(False)
         self.last = [0] * 10  # reset state on reconnect
@@ -69,3 +69,29 @@ class MidiInstrument:
 
     def _poll(self):
         raise NotImplementedError("Please implement this method")
+
+def list_hid_devices():
+    """
+    Enumerates and prints details of all connected HID devices.
+    """
+    print("Searching for HID devices...")
+    try:
+        devices = hid.enumerate()
+        if not devices:
+            print("No HID devices found.")
+            return
+
+        print(f"Found {len(devices)} device(s):")
+        for dev in devices:
+            print("-" * 20)
+            print(f"  Path: {dev['path']}")
+            print(f"  Vendor ID (VID): 0x{dev['vendor_id']:04x}")
+            print(f"  Product ID (PID): 0x{dev['product_id']:04x}")
+            print(f"  Serial Number: {dev['serial_number']}")
+            print(f"  Manufacturer: {dev['manufacturer_string']}")
+            print(f"  Product: {dev['product_string']}")
+            print(f"  Usage Page: 0x{dev['usage_page']:04x}")
+            print(f"  Usage: 0x{dev['usage']:04x}")
+            # Other fields like interface_number, etc., may also be available
+    except Exception as e:
+        print(f"An error occurred: {e}")

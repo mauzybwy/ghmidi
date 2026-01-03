@@ -6,6 +6,18 @@ VID = 0x1209
 PID = 0x2882
 MIDI_OUTPUT = 'IAC Driver Bus 1' 
 
+"""
+  Path: b'DevSrvsID:4295599843'
+  Vendor ID (VID): 0x1209
+  Product ID (PID): 0x2882
+  Serial Number: E6653811DB1F1E213031
+  Manufacturer: RetroCultMods
+  Product: V3 Adapter - GH Guitar (Default)
+  Usage Page: 0x0001
+  Usage: 0x0005
+"""
+
+
 class MidiDrums(MidiInstrument):
     def __init__(self, keymap):
         super().__init__(keymap, VID, PID, MIDI_OUTPUT)
