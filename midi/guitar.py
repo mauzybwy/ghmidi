@@ -76,7 +76,6 @@ class MidiGuitar(MidiInstrument):
         if not data:
             return
 
-        prev_state = copy.deepcopy(self.state) 
         tick = time.time()
         buttons = self._read_buttons(data)
         strummed = self._update_strum_state(data, tick)
@@ -85,9 +84,6 @@ class MidiGuitar(MidiInstrument):
         self._process_whammy(data)
 
         self.state.buttons = buttons
-
-        if self.state != prev_state:
-            print(self.state)
 
     def _read_buttons(self, data: bytes) -> list[bool]:
         return [is_bit_set(data[1], i) for i in range(BUTTON_COUNT)] + [is_pad_set(data[5], i) for i in range(PAD_COUNT)]
