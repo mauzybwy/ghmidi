@@ -102,6 +102,7 @@ class MidiGuitar(MidiInstrument):
 
         if not was_strumming:
             self.state.strum_tick = tick
+            self.state.strumming = True
             return True
 
         return False
