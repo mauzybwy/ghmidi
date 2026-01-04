@@ -59,6 +59,10 @@ class GuitarState:
             return 0xffff
         return max(self.active_buttons)
 
+    @property
+    def has_active_buttons(self) -> int:
+        return len(self.active_buttons) > 0
+
 class MidiGuitar(MidiInstrument):
     def __init__(self, keymap, channel=0, latch_notes=False):
         super().__init__(keymap, VID, PID, MIDI_OUTPUT)
@@ -105,22 +109,23 @@ class MidiGuitar(MidiInstrument):
     def _process_notes(self, buttons: list[bool], strummed: bool):
         for i, is_pressed in enumerate(buttons):
             was_pressed = self.state.buttons[i]
+            was_active = i in self.state.active_buttons
 
             if strummed:
                 if was_pressed and is_pressed:
                     self._note_off(i)
+
                 if is_pressed:
                     self._note_on(i)
                 else:
+                    self._note_off(i) 
+            else:
+                if not self.latch_notes and not is_pressed:
                     self._note_off(i)
-            elif not self.latch_notes and not is_pressed:
-                self._note_off(i)
-            elif is_pressed:
-                self._try_hammer_on(i)
-
-            if not strummed and not is_pressed and was_pressed:
-                self._try_pull_off(i)
-                
+                if is_pressed and self.state.has_active_buttons:
+                    self._try_hammer_on(i)
+                if not is_pressed and was_active:
+                    self._try_pull_off(i)
                 
 
     def _try_hammer_on(self, button: int):
