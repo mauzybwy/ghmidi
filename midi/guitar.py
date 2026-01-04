@@ -8,6 +8,23 @@ from mido import Message
 
 from .instrument import MidiInstrument
 
+MAJOR_PENTATONIC = [0, 2, 4, 7, 9]
+MINOR_PENTATONIC = [0, 3, 5, 7, 10]
+
+DOMINANT_PENTATONIC = [0, 2, 4, 7, 10]
+MINOR_6_PENTATONIC = [0, 2, 3, 7, 9]
+MAJOR_B6_PENTATONIC = [0, 2, 4, 7, 8]
+LYDIAN_PENTATONIC = [0, 2, 4, 6, 9]
+PHRYGIAN_PENTATONIC = [0, 1, 5, 7, 10]
+WHOLE_TONE_FRAGMENT = [0, 2, 4, 6, 8]
+DIMINISHED_SUBSET = [0, 2, 3, 6, 7]
+
+HIRAJOSHI = [0, 2, 3, 7, 8]
+KUMOI = [0, 2, 3, 7, 9]
+IWATO = [0, 1, 5, 6, 10]
+MAN_GONG = [0, 3, 5, 8, 10]
+PELOG = [0, 1, 3, 7, 8]
+
 # Device configuration
 VID = 0x1209
 PID = 0x2882
@@ -16,7 +33,7 @@ MIDI_OUTPUT = "IAC Driver Bus 1"
 # Guitar configuration
 BUTTON_COUNT = 5
 BASE_NOTE = 60
-NOTE_INTERVAL = 2
+NOTE_OFFSETS = MINOR_PENTATONIC
 MAX_PITCH_BEND = 8191
 STRUM_DEBOUNCE_SECS = 0.05
 
@@ -31,15 +48,22 @@ STRUM_NEUTRAL = 8
 @dataclass
 class GuitarState:
     buttons: list[bool] = field(default_factory=lambda: [False] * BUTTON_COUNT)
+    active_buttons: set[int] = field(default_factory=set)
     strum_tick: float = 0.0
     strumming: bool = False
     pitch_position: int = 0
 
+    @property
+    def max_active_button(self) -> int:
+        if not self.active_buttons:
+            return 0xffff
+        return max(self.active_buttons)
+
 class MidiGuitar(MidiInstrument):
-    def __init__(self, keymap):
+    def __init__(self, keymap, channel=0, latch_notes=False):
         super().__init__(keymap, VID, PID, MIDI_OUTPUT)
-        self.channel = 0
-        self.latch_notes = False
+        self.channel = channel
+        self.latch_notes = latch_notes
         self.state = GuitarState()
 
     def _poll(self):
@@ -80,18 +104,35 @@ class MidiGuitar(MidiInstrument):
 
     def _process_notes(self, buttons: list[bool], strummed: bool):
         for i, is_pressed in enumerate(buttons):
-            note = BASE_NOTE + i * NOTE_INTERVAL
             was_pressed = self.state.buttons[i]
 
             if strummed:
                 if was_pressed and is_pressed:
-                    self._note_off(note)
+                    self._note_off(i)
                 if is_pressed:
-                    self._note_on(note)
+                    self._note_on(i)
                 else:
-                    self._note_off(note)
+                    self._note_off(i)
             elif not self.latch_notes and not is_pressed:
-                self._note_off(note)
+                self._note_off(i)
+            elif is_pressed:
+                self._try_hammer_on(i)
+
+            if not strummed and not is_pressed and was_pressed:
+                self._try_pull_off(i)
+                
+                
+
+    def _try_hammer_on(self, button: int):
+        if button > self.state.max_active_button:
+            self._note_off(self.state.max_active_button)
+            self._note_on(button)
+
+    def _try_pull_off(self, button: int):
+        for i in range(button -1, -1, -1):
+            if self.state.buttons[i] and  i not in self.state.active_buttons:
+                self._note_on(i)
+                break
 
     def _process_whammy(self, data: bytes):
         whammy = data[4]
@@ -114,7 +155,10 @@ class MidiGuitar(MidiInstrument):
     def _is_strum_debounced(self, tick: float) -> bool:
         return tick - self.state.strum_tick > STRUM_DEBOUNCE_SECS
 
-    def _note_on(self, note: int, velocity: int | None = None):
+    def _note_on(self, button: int, velocity: int | None = None):
+        self.state.active_buttons.add(button)
+        note = BASE_NOTE + NOTE_OFFSETS[button]
+        
         if velocity is None:
             velocity = random.randint(0x40, 0x7F)
 
@@ -122,7 +166,10 @@ class MidiGuitar(MidiInstrument):
             Message("note_on", channel=self.channel, note=note, velocity=velocity)
         )
 
-    def _note_off(self, note: int):
+    def _note_off(self, button: int):
+        self.state.active_buttons.discard(button)
+        note = BASE_NOTE + NOTE_OFFSETS[button]
+        
         self.midiout.send(Message("note_off", channel=self.channel, note=note))
 
     def _pitch_bend(self, pitch: int):
