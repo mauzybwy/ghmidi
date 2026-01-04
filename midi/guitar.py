@@ -32,7 +32,8 @@ MIDI_OUTPUT = "IAC Driver Bus 1"
 
 # Guitar configuration
 BUTTON_COUNT = 5
-BASE_NOTE = 60
+PAD_COUNT = 5
+BASE_NOTE = 48
 NOTE_OFFSETS = MINOR_PENTATONIC
 MAX_PITCH_BEND = 8191
 STRUM_DEBOUNCE_SECS = 0.05
@@ -47,7 +48,7 @@ STRUM_NEUTRAL = 8
 
 @dataclass
 class GuitarState:
-    buttons: list[bool] = field(default_factory=lambda: [False] * BUTTON_COUNT)
+    buttons: list[bool] = field(default_factory=lambda: [False] * (BUTTON_COUNT * PAD_COUNT))
     active_buttons: set[int] = field(default_factory=set)
     strum_tick: float = 0.0
     strumming: bool = False
@@ -89,7 +90,7 @@ class MidiGuitar(MidiInstrument):
             print(self.state)
 
     def _read_buttons(self, data: bytes) -> list[bool]:
-        return [is_bit_set(data[1], i) for i in range(BUTTON_COUNT)]
+        return [is_bit_set(data[1], i) for i in range(BUTTON_COUNT)] + [is_pad_set(data[5], i) for i in range(PAD_COUNT)]
 
     def _update_strum_state(self, data: bytes, tick: float) -> bool:
         strum_value = data[3]
@@ -121,7 +122,7 @@ class MidiGuitar(MidiInstrument):
                 else:
                     self._note_off(i) 
             else:
-                if not self.latch_notes and not is_pressed:
+                if not is_pressed:
                     self._note_off(i)
                 if is_pressed and self.state.has_active_buttons:
                     self._try_hammer_on(i)
@@ -163,10 +164,10 @@ class MidiGuitar(MidiInstrument):
 
     def _note_on(self, button: int, velocity: int | None = None):
         self.state.active_buttons.add(button)
-        note = BASE_NOTE + NOTE_OFFSETS[button]
+        note = self._calc_note(button)
         
         if velocity is None:
-            velocity = random.randint(0x40, 0x7F)
+            velocity = random.randint(0x60, 0x7F)
 
         self.midiout.send(
             Message("note_on", channel=self.channel, note=note, velocity=velocity)
@@ -174,13 +175,26 @@ class MidiGuitar(MidiInstrument):
 
     def _note_off(self, button: int):
         self.state.active_buttons.discard(button)
-        note = BASE_NOTE + NOTE_OFFSETS[button]
-        
-        self.midiout.send(Message("note_off", channel=self.channel, note=note))
+
+        if not self.latch_notes:
+            note = self._calc_note(button)
+            self.midiout.send(Message("note_off", channel=self.channel, note=note))
 
     def _pitch_bend(self, pitch: int):
         self.midiout.send(Message("pitchwheel", channel=self.channel, pitch=pitch))
 
+    def _calc_note(self, button: int):
+        return BASE_NOTE + NOTE_OFFSETS[button % BUTTON_COUNT] + (math.floor(button / BUTTON_COUNT) * 12)
+
 
 def is_bit_set(value: int, bit: int) -> bool:
     return (value & (1 << bit)) != 0
+
+def is_pad_set(value: int, pad: int) -> bool:
+    match (pad, value):
+        case (0, 0x15 | 0x30): return True
+        case (1, 0x30 | 0x4d | 0x66): return True
+        case (2, 0x66 | 0x9a | 0xaf): return True
+        case (3, 0xaf | 0xc9 | 0xe6): return True
+        case (4, 0xe6 | 0xff): return True
+        case _: return False
