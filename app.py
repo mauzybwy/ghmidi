@@ -102,12 +102,28 @@ def guitar_task():
         observer.stop()
         # dpg.destroy_context()
 
-guitar_thread = threading.Thread(target=guitar_task)
-guitar_thread.start()
+def drums_task():
+    try:
+        with MidiDrums(reloader.keymap) as drums:
+            while True:
+                drums.poll()
+                
+            
+    except KeyboardInterrupt:
+        observer.stop()
+        # dpg.destroy_context()
 
-        
-dpg.setup_dearpygui()
-dpg.show_viewport()
-dpg.start_dearpygui()
-dpg.destroy_context()        
+# guitar_thread = threading.Thread(target=guitar_task)
+# guitar_thread.start()
+
+drums_thread = threading.Thread(target=drums_task)
+drums_thread.start()
+
+
+if False:
+    dpg.setup_dearpygui()
+    dpg.show_viewport()
+    dpg.start_dearpygui()
+    dpg.destroy_context()        
+
 observer.join()

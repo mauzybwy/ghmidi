@@ -28,6 +28,8 @@ class MidiDrums(MidiInstrument):
         if not data:
             return
 
+        print(data)
+
         for i, b in enumerate(data):
             key = self.keymap[i] if i < len(self.keymap) else None
             if not key:
@@ -46,8 +48,16 @@ class MidiDrums(MidiInstrument):
                 'note_on' if curr else 'note_off',
                 channel=0,
                 note=key['note'],
-                velocity=math.floor(curr / 2),
+                velocity=clamp(curr, 90, 127),
                 time=0
             )
             self.midiout.send(msg)
             self.last[i] = curr
+
+def clamp(n, min, max):
+    if n < min:
+        return min
+    elif n > max:
+        return max
+    else:
+        return n
