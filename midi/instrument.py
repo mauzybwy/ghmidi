@@ -5,8 +5,7 @@ import math
 import time
 
 class MidiInstrument:
-    def __init__(self, keymap, vid, pid, midi_bus):
-        self.keymap = keymap
+    def __init__(self, vid, pid, midi_bus):
         self.device = None
         self.midiout = None
         self.vid = vid

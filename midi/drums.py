@@ -1,10 +1,10 @@
 from mido import Message
 from .instrument import MidiInstrument
 import math
+import yaml
 
 VID = 0x1209
 PID = 0x2882
-MIDI_OUTPUT = 'IAC Driver Bus 1' 
 
 """
   Path: b'DevSrvsID:4295599843'
@@ -17,10 +17,34 @@ MIDI_OUTPUT = 'IAC Driver Bus 1'
   Usage: 0x0005
 """
 
+CONFIG_PATH = 'midi/drums_config.yaml'
+
+def load_config():
+    with open(CONFIG_PATH) as f:
+        config = yaml.safe_load(f)
+    
+    midimap = config['midimap']
+    keymap_config = config['keymap']
+    
+    keymap = [None] * 10
+    for color, data in keymap_config.items():
+        keymap[data['index']] = {
+            'id': color,
+            'note': midimap[data['pad']]
+        }
+    
+    print(f"Loaded config: {[k['id'] if k else None for k in keymap]}")
+    return keymap
 
 class MidiDrums(MidiInstrument):
-    def __init__(self, keymap):
-        super().__init__(keymap, VID, PID, MIDI_OUTPUT)
+    def __init__(
+            self,
+            channel = 0,
+            midi_bus = "IAC Driver Bus 1",
+    ):
+        self.channel = channel
+        self.keymap = load_config()
+        super().__init__(VID, PID, midi_bus)
     
     def _poll(self):
         data = self.device.read(64)
@@ -46,7 +70,7 @@ class MidiDrums(MidiInstrument):
 
             msg = Message(
                 'note_on' if curr else 'note_off',
-                channel=0,
+                channel=self.channel,
                 note=key['note'],
                 velocity=clamp(curr, 90, 127),
                 time=0
