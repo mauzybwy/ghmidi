@@ -83,7 +83,8 @@ class MidiGuitar(MidiInstrument):
             root='C3',
             midi_bus="IAC Driver Bus 1"
     ):
-        super().__init__(VID, PID, midi_bus)
+        # super().__init__(VID, PID, midi_bus)
+        super().__init__("V3 Adapter - GH Guitar (Default)", midi_bus)
         self.channel = channel
         self.latch_notes = latch_notes
         self.state = GuitarState()

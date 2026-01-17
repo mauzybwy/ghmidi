@@ -44,7 +44,8 @@ class MidiDrums(MidiInstrument):
     ):
         self.channel = channel
         self.keymap = load_config()
-        super().__init__(VID, PID, midi_bus)
+        # super().__init__(VID, PID, midi_bus)
+        super().__init__("V3 Adapter - GH Drums", midi_bus)
     
     def _poll(self):
         data = self.device.read(64)

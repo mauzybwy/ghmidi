@@ -5,19 +5,20 @@ import math
 import time
 
 class MidiInstrument:
-    def __init__(self, vid, pid, midi_bus):
+    def __init__(self, product_string, midi_bus):
         self.device = None
         self.midiout = None
-        self.vid = vid
-        self.pid = pid
+        self.product_string = product_string
+        # self.vid = vid
+        # self.pid = pid
         self.midi_bus = midi_bus
         self.last = [0] * 10
 
     def __enter__(self):
         try:
             self._connect()
-        except OSError as e:
-            if e.args[0] == "open failed":
+        except (OSError, ValueError) as e:
+            if e.args[0] in ["open failed", "poop error"]:
                 print("⚠️ Please try disconnecting/re-connecting the USB device ⚠️")
                 self._reconnect()
             else:
@@ -36,7 +37,7 @@ class MidiInstrument:
         try:
             self._poll()
         except (ValueError, OSError) as e:
-            if e.args[0] in ["not open", "read error"]:
+            if e.args[0] in ["not open", "read error", "poop error"]:
                 print("⚠️ Please connect the USB device :( ⚠️")
                 self._reconnect()
             else:
@@ -45,7 +46,8 @@ class MidiInstrument:
     def _connect(self):
         self.device = hid.device()
         # print(list_hid_devices())
-        self.device.open(self.vid, self.pid)
+        # self.device.open(self.vid, self.pid)
+        self.open_by_product(self.product_string)
         self.device.set_nonblocking(False)
         self.last = [0] * 10  # reset state on reconnect
             
@@ -65,9 +67,25 @@ class MidiInstrument:
                 break
             except OSError:
                 pass  # still not available
+            except ValueError as e:
+                if e.args[0] in ["poop error"]:
+                    print("⚠️ Please connect the USB device :( ⚠️")
+                    self._reconnect()
+                else:
+                    raise
 
     def _poll(self):
         raise NotImplementedError("Please implement this method")
+
+    def open_by_product(self, product_string):
+        for d in hid.enumerate():
+            print(d['product_string'])
+            if d['product_string'] == product_string:
+                self.device.open_path(d['path'])
+                return d
+
+        print("Couldn't find product", product_string)
+        raise ValueError(f"poop error")
 
 def list_hid_devices():
     """
